@@ -3,10 +3,12 @@
 set -e
 
 directyPath=$(pwd)
-old_brach=$1
-new_branch=$2
-old_env=$3
-new_env=$4
+old_brach=$1 # dev-001,stage-001 (branch name of the old environment)
+new_branch=$2 # stage-sync, prod-sync (branch name of the new environment(a locally created branch))
+old_env=$3 # dev, stage (old environment name)
+new_env=$4 # stage, prod (new environment name)
+
+# This command can be used to execute the script : ./environemntSync.sh dev-001 stage-sync dev stage
 
 # Checkout the old branch and get the version details
 
