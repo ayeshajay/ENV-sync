@@ -145,7 +145,7 @@ function network_policy () {
     echo "$NETWORK_POLICY_HELM_VERSION"
 }
 
-git -C "$directyPath" checkout upstream/"$old_brach"
+git -C "$directyPath" checkout d853cf4ac3488e5f56375e7b9808e15a8ca81ab5
 
 read QUERY_SERVICE_OLD_IMAGE_SHA QUERY_SERVICE_OLD_VERSION QUERY_SERVICE_OLD_HELM_VERSION <<< "$(query_service $old_env)"
 read RESOURCE_MONITOR_OLD_IMAGE_SHA RESOURCE_MONITOR_OLD_VERSION RESOURCE_MONITOR_OLD_HELM_VERSION <<< "$(resource_monitor $old_env)"
