@@ -3,10 +3,37 @@
 set -e
 
 directyPath=$(pwd)
-old_brach=$1 # dev-001,stage-001 (branch name of the old environment)
-new_branch=$2 # stage-sync, prod-sync (branch name of the new environment(a locally created branch))
-old_env=$3 # dev, stage (old environment name)
-new_env=$4 # stage, prod (new environment name)
+sync_type=$1
+if [ $sync_type == "stage-us" ]; then
+  old_env="dev"
+  new_env="stage"
+  dr_prefix="dr"
+  new_branch="stage-001"
+elif [ $sync_type == "prod-us" ]; then
+  old_env="stage"
+  new_env="prod"
+  dr_prefix="dr"
+  new_branch="prod-001"
+elif [ $sync_type == "stage-eu" ]; then
+  old_env="dev"
+  new_env="stage"
+  dr_prefix="eustdr"
+  new_branch="eu-003"
+elif [ $sync_type == "prod-eu" ]; then
+  old_env="stage"
+  new_env="prod"
+  dr_prefix="eudr"
+  new_branch="eu-001"
+elif [ $sync_type == "perf" ]; then
+  old_env="stage"
+  new_env="perf"
+  new_branch="perf-001"
+else
+  exit 1;
+fi
+    
+old_brach="$old_env-001" # dev-001,stage-001 (branch name of the old environment)
+local_branch="$sync_type-sync" # stage-sync, prod-sync (branch name of the new environment(a locally created branch))
 
 # This command can be used to execute the script : ./environemntSync.sh dev-001 stage-sync dev stage
 
@@ -145,109 +172,122 @@ function network_policy () {
     echo "$NETWORK_POLICY_HELM_VERSION"
 }
 
-git -C "$directyPath" checkout upstream/"$old_brach"
+## Checkout to old branch
+git -C "$directyPath" fetch upstream
+git -C "$directyPath" checkout "upstream/$old_brach"
+if git branch | grep -q "$local_branch"; then
+  git branch -D "$local_branch"
+fi
 
-read QUERY_SERVICE_OLD_IMAGE_SHA QUERY_SERVICE_OLD_VERSION QUERY_SERVICE_OLD_HELM_VERSION <<< "$(query_service $old_env)"
-read RESOURCE_MONITOR_OLD_IMAGE_SHA RESOURCE_MONITOR_OLD_VERSION RESOURCE_MONITOR_OLD_HELM_VERSION <<< "$(resource_monitor $old_env)"
-read IS_OLD_IMAGE_SHA IS_OLD_VERSION ASGARDEO_OLD_VERSION IS_OLD_HELM_VERSION IS_OLD_TEST_VERSION <<< "$(identity_server $old_env)"
-read WEBSITE_OLD_IMAGE_SHA WEBSITE_OLD_VERSION WEBSITE_OLD_HELM_VERSION <<< "$(website $old_env)"
-read ACTIVEMQ_OLD_IMAGE_SHA ACTIVEMQ_OLD_VERSION ACTIVEMQ_OLD_HELM_VERSION <<< "$(activemq $old_env)"
-read LOG_MGT_OLD_IMAGE_SHA LOG_MGT_OLD_VERSION LOG_MGT_OLD_HELM_VERSION <<< "$(log_mgt $old_env)"
-read ONPREM_USERSTORE_OLD_IMAGE_SHA ONPREM_USERSTORE_OLD_VERSION ONPREM_USERSTORE_OLD_HELM_VERSION <<< "$(onprem_userstore $old_env)"
-read SUBSCRIPTION_SERVICE_OLD_IMAGE_SHA SUBSCRIPTION_SERVICE_OLD_VERSION SUBSCRIPTION_SERVICE_OLD_HELM_VERSION <<< "$(subscription_service $old_env)"
-read TENANT_DELETION_OLD_IMAGE_SHA TENANT_DELETION_OLD_VERSION TENANT_DELETION_OLD_HELM_VERSION <<< "$(tenant_deletion $old_env)"
-read TIER_CONTROLLER_OLD_IMAGE_SHA TIER_CONTROLLER_OLD_VERSION TIER_CONTROLLER_OLD_HELM_VERSION <<< "$(tier_controller $old_env)"
-read USER_MGT_OLD_IMAGE_SHA USER_MGT_OLD_VERSION USER_MGT_OLD_HELM_VERSION <<< "$(user_mgt $old_env)"
-read NETWORK_POLICY_OLD_HELM_VERSION <<< "$(network_policy $old_env)"
+read QUERY_SERVICE_OLD_ENV_IMAGE_SHA QUERY_SERVICE_OLD_ENV_VERSION QUERY_SERVICE_OLD_ENV_HELM_VERSION <<< "$(query_service $old_env)"
+read RESOURCE_MONITOR_OLD_ENV_IMAGE_SHA RESOURCE_MONITOR_OLD_ENV_VERSION RESOURCE_MONITOR_OLD_ENV_HELM_VERSION <<< "$(resource_monitor $old_env)"
+read IS_OLD_ENV_IMAGE_SHA IS_OLD_ENV_VERSION ASGARDEO_OLD_ENV_VERSION IS_OLD_ENV_HELM_VERSION IS_OLD_ENV_TEST_VERSION <<< "$(identity_server $old_env)"
+read WEBSITE_OLD_ENV_IMAGE_SHA WEBSITE_OLD_ENV_VERSION WEBSITE_OLD_ENV_HELM_VERSION <<< "$(website $old_env)"
+read ACTIVEMQ_OLD_ENV_IMAGE_SHA ACTIVEMQ_OLD_ENV_VERSION ACTIVEMQ_OLD_ENV_HELM_VERSION <<< "$(activemq $old_env)"
+read LOG_MGT_OLD_ENV_IMAGE_SHA LOG_MGT_OLD_ENV_VERSION LOG_MGT_OLD_ENV_HELM_VERSION <<< "$(log_mgt $old_env)"
+read ONPREM_USERSTORE_OLD_ENV_IMAGE_SHA ONPREM_USERSTORE_OLD_ENV_VERSION ONPREM_USERSTORE_OLD_ENV_HELM_VERSION <<< "$(onprem_userstore $old_env)"
+read SUBSCRIPTION_SERVICE_OLD_ENV_IMAGE_SHA SUBSCRIPTION_SERVICE_OLD_ENV_VERSION SUBSCRIPTION_SERVICE_OLD_ENV_HELM_VERSION <<< "$(subscription_service $old_env)"
+read TENANT_DELETION_OLD_ENV_IMAGE_SHA TENANT_DELETION_OLD_ENV_VERSION TENANT_DELETION_OLD_ENV_HELM_VERSION <<< "$(tenant_deletion $old_env)"
+read TIER_CONTROLLER_OLD_ENV_IMAGE_SHA TIER_CONTROLLER_OLD_ENV_VERSION TIER_CONTROLLER_OLD_ENV_HELM_VERSION <<< "$(tier_controller $old_env)"
+read USER_MGT_OLD_ENV_IMAGE_SHA USER_MGT_OLD_ENV_VERSION USER_MGT_OLD_ENV_HELM_VERSION <<< "$(user_mgt $old_env)"
+read NETWORK_POLICY_OLD_ENV_HELM_VERSION <<< "$(network_policy $old_env)"
 
 
 #Get existing env values
 
-git -C "$directyPath" checkout "$new_branch"
+git -C "$directyPath" checkout "upstream/$new_branch" -b "$local_branch"
 
-read QUERY_SERVICE_NEW_IMAGE_SHA QUERY_SERVICE_NEW_VERSION QUERY_SERVICE_NEW_HELM_VERSION <<< "$(query_service $new_env)"
-read RESOURCE_MONITOR_NEW_IMAGE_SHA RESOURCE_MONITOR_NEW_VERSION RESOURCE_MONITOR_NEW_HELM_VERSION <<< "$(resource_monitor $new_env)"
-read IS_NEW_IMAGE_SHA IS_NEW_VERSION ASGARDEO_NEW_VERSION IS_NEW_HELM_VERSION IS_NEW_TEST_VERSION <<< "$(identity_server $new_env)"
-read WEBSITE_NEW_IMAGE_SHA WEBSITE_NEW_VERSION WEBSITE_NEW_HELM_VERSION <<< "$(website $new_env)"
-read ACTIVEMQ_NEW_IMAGE_SHA ACTIVEMQ_NEW_VERSION ACTIVEMQ_NEW_HELM_VERSION <<< "$(activemq $new_env)"
-read LOG_MGT_NEW_IMAGE_SHA LOG_MGT_NEW_VERSION LOG_MGT_NEW_HELM_VERSION <<< "$(log_mgt $new_env)"
-read ONPREM_USERSTORE_NEW_IMAGE_SHA ONPREM_USERSTORE_NEW_VERSION ONPREM_USERSTORE_NEW_HELM_VERSION <<< "$(onprem_userstore $new_env)"
-read SUBSCRIPTION_SERVICE_NEW_IMAGE_SHA SUBSCRIPTION_SERVICE_NEW_VERSION SUBSCRIPTION_SERVICE_NEW_HELM_VERSION <<< "$(subscription_service $new_env)"
-read TENANT_DELETION_NEW_IMAGE_SHA TENANT_DELETION_NEW_VERSION TENANT_DELETION_NEW_HELM_VERSION <<< "$(tenant_deletion $new_env)"
-read TIER_CONTROLLER_NEW_IMAGE_SHA TIER_CONTROLLER_NEW_VERSION TIER_CONTROLLER_NEW_HELM_VERSION <<< "$(tier_controller $new_env)"
-read USER_MGT_NEW_IMAGE_SHA USER_MGT_NEW_VERSION USER_MGT_NEW_HELM_VERSION <<< "$(user_mgt $new_env)"
-read NETWORK_POLICY_NEW_HELM_VERSION <<< "$(network_policy $new_env)"
+read QUERY_SERVICE_NEW_ENV_IMAGE_SHA QUERY_SERVICE_NEW_ENV_VERSION QUERY_SERVICE_NEW_ENV_HELM_VERSION <<< "$(query_service $new_env)"
+read RESOURCE_MONITOR_NEW_ENV_IMAGE_SHA RESOURCE_MONITOR_NEW_ENV_VERSION RESOURCE_MONITOR_NEW_ENV_HELM_VERSION <<< "$(resource_monitor $new_env)"
+read IS_NEW_ENV_IMAGE_SHA IS_NEW_ENV_VERSION ASGARDEO_NEW_ENV_VERSION IS_NEW_ENV_HELM_VERSION IS_NEW_ENV_TEST_VERSION <<< "$(identity_server $new_env)"
+read WEBSITE_NEW_ENV_IMAGE_SHA WEBSITE_NEW_ENV_VERSION WEBSITE_NEW_ENV_HELM_VERSION <<< "$(website $new_env)"
+read ACTIVEMQ_NEW_ENV_IMAGE_SHA ACTIVEMQ_NEW_ENV_VERSION ACTIVEMQ_NEW_ENV_HELM_VERSION <<< "$(activemq $new_env)"
+read LOG_MGT_NEW_ENV_IMAGE_SHA LOG_MGT_NEW_ENV_VERSION LOG_MGT_NEW_ENV_HELM_VERSION <<< "$(log_mgt $new_env)"
+read ONPREM_USERSTORE_NEW_ENV_IMAGE_SHA ONPREM_USERSTORE_NEW_ENV_VERSION ONPREM_USERSTORE_NEW_ENV_HELM_VERSION <<< "$(onprem_userstore $new_env)"
+read SUBSCRIPTION_SERVICE_NEW_ENV_IMAGE_SHA SUBSCRIPTION_SERVICE_NEW_ENV_VERSION SUBSCRIPTION_SERVICE_NEW_ENV_HELM_VERSION <<< "$(subscription_service $new_env)"
+read TENANT_DELETION_NEW_ENV_IMAGE_SHA TENANT_DELETION_NEW_ENV_VERSION TENANT_DELETION_NEW_ENV_HELM_VERSION <<< "$(tenant_deletion $new_env)"
+read TIER_CONTROLLER_NEW_ENV_IMAGE_SHA TIER_CONTROLLER_NEW_ENV_VERSION TIER_CONTROLLER_NEW_ENV_HELM_VERSION <<< "$(tier_controller $new_env)"
+read USER_MGT_NEW_ENV_IMAGE_SHA USER_MGT_NEW_ENV_VERSION USER_MGT_NEW_ENV_HELM_VERSION <<< "$(user_mgt $new_env)"
+read NETWORK_POLICY_NEW_ENV_HELM_VERSION <<< "$(network_policy $new_env)"
 
 #Update the new environment with the old environment values
-sed -i '' -e 's|'"${QUERY_SERVICE_NEW_IMAGE_SHA}"'|'"${QUERY_SERVICE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/query-service/dr-setup-variables.yaml
-sed -i '' -e 's|'"${QUERY_SERVICE_NEW_IMAGE_SHA}"'|'"${QUERY_SERVICE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${QUERY_SERVICE_NEW_VERSION}"'|'"${QUERY_SERVICE_OLD_VERSION}"'|' $directyPath/cd-pipelines/query-service/dr-setup-variables.yaml
-sed -i '' -e 's|'"${QUERY_SERVICE_NEW_VERSION}"'|'"${QUERY_SERVICE_OLD_VERSION}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${QUERY_SERVICE_NEW_HELM_VERSION}"'|'"${QUERY_SERVICE_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${QUERY_SERVICE_NEW_ENV_IMAGE_SHA}"'|'"${QUERY_SERVICE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${QUERY_SERVICE_NEW_ENV_VERSION}"'|'"${QUERY_SERVICE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${QUERY_SERVICE_NEW_ENV_HELM_VERSION}"'|'"${QUERY_SERVICE_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/query-service/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${RESOURCE_MONITOR_NEW_IMAGE_SHA}"'|'"${RESOURCE_MONITOR_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/resource-monitor/dr-setup-variables.yaml
-sed -i '' -e 's|'"${RESOURCE_MONITOR_NEW_IMAGE_SHA}"'|'"${RESOURCE_MONITOR_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${RESOURCE_MONITOR_NEW_VERSION}"'|'"${RESOURCE_MONITOR_OLD_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/dr-setup-variables.yaml
-sed -i '' -e 's|'"${RESOURCE_MONITOR_NEW_VERSION}"'|'"${RESOURCE_MONITOR_OLD_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${RESOURCE_MONITOR_NEW_HELM_VERSION}"'|'"${RESOURCE_MONITOR_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${RESOURCE_MONITOR_NEW_ENV_IMAGE_SHA}"'|'"${RESOURCE_MONITOR_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${RESOURCE_MONITOR_NEW_ENV_VERSION}"'|'"${RESOURCE_MONITOR_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${RESOURCE_MONITOR_NEW_ENV_HELM_VERSION}"'|'"${RESOURCE_MONITOR_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${IS_NEW_IMAGE_SHA}"'|'"${IS_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/identity-server/dr-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_IMAGE_SHA}"'|'"${IS_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_VERSION}"'|'"${IS_OLD_VERSION}"'|' $directyPath/cd-pipelines/identity-server/dr-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_VERSION}"'|'"${IS_OLD_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${ASGARDEO_NEW_VERSION}"'|'"${ASGARDEO_OLD_VERSION}"'|' $directyPath/cd-pipelines/identity-server/dr-setup-variables.yaml
-sed -i '' -e 's|'"${ASGARDEO_NEW_VERSION}"'|'"${ASGARDEO_OLD_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_HELM_VERSION}"'|'"${IS_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/identity-server/dr-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_HELM_VERSION}"'|'"${IS_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${IS_NEW_TEST_VERSION}"'|'"${IS_OLD_TEST_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-test-variables.yaml
+perl -i -pe 's|'"${IS_NEW_ENV_IMAGE_SHA}"'|'"${IS_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${IS_NEW_ENV_VERSION}"'|'"${IS_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${ASGARDEO_NEW_ENV_VERSION}"'|'"${ASGARDEO_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${IS_NEW_ENV_HELM_VERSION}"'|'"${IS_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${IS_NEW_ENV_TEST_VERSION}"'|'"${IS_OLD_ENV_TEST_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$new_env"-test-variables.yaml
 
-sed -i '' -e 's|'"${WEBSITE_NEW_IMAGE_SHA}"'|'"${WEBSITE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/cloud-website/dr-setup-variables.yaml
-sed -i '' -e 's|'"${WEBSITE_NEW_IMAGE_SHA}"'|'"${WEBSITE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${WEBSITE_NEW_VERSION}"'|'"${WEBSITE_OLD_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/dr-setup-variables.yaml
-sed -i '' -e 's|'"${WEBSITE_NEW_VERSION}"'|'"${WEBSITE_OLD_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${WEBSITE_NEW_HELM_VERSION}"'|'"${WEBSITE_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/dr-setup-variables.yaml
-sed -i '' -e 's|'"${WEBSITE_NEW_HELM_VERSION}"'|'"${WEBSITE_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${WEBSITE_NEW_ENV_IMAGE_SHA}"'|'"${WEBSITE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${WEBSITE_NEW_ENV_VERSION}"'|'"${WEBSITE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${WEBSITE_NEW_ENV_HELM_VERSION}"'|'"${WEBSITE_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$new_env"-setup-variables.yaml
 
-sed -i '' -e 's|'"${ACTIVEMQ_NEW_IMAGE_SHA}"'|'"${ACTIVEMQ_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/activemq/dr-setup-variables.yaml
-sed -i '' -e 's|'"${ACTIVEMQ_NEW_IMAGE_SHA}"'|'"${ACTIVEMQ_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${ACTIVEMQ_NEW_VERSION}"'|'"${ACTIVEMQ_OLD_VERSION}"'|' $directyPath/cd-pipelines/activemq/dr-setup-variables.yaml
-sed -i '' -e 's|'"${ACTIVEMQ_NEW_VERSION}"'|'"${ACTIVEMQ_OLD_VERSION}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${ACTIVEMQ_NEW_HELM_VERSION}"'|'"${ACTIVEMQ_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${ACTIVEMQ_NEW_ENV_IMAGE_SHA}"'|'"${ACTIVEMQ_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${ACTIVEMQ_NEW_ENV_VERSION}"'|'"${ACTIVEMQ_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${ACTIVEMQ_NEW_ENV_HELM_VERSION}"'|'"${ACTIVEMQ_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/activemq/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${LOG_MGT_NEW_IMAGE_SHA}"'|'"${LOG_MGT_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/log-mgt/dr-setup-variables.yaml
-sed -i '' -e 's|'"${LOG_MGT_NEW_IMAGE_SHA}"'|'"${LOG_MGT_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${LOG_MGT_NEW_VERSION}"'|'"${LOG_MGT_OLD_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/dr-setup-variables.yaml
-sed -i '' -e 's|'"${LOG_MGT_NEW_VERSION}"'|'"${LOG_MGT_OLD_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${LOG_MGT_NEW_HELM_VERSION}"'|'"${LOG_MGT_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${LOG_MGT_NEW_ENV_IMAGE_SHA}"'|'"${LOG_MGT_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${LOG_MGT_NEW_ENV_VERSION}"'|'"${LOG_MGT_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${LOG_MGT_NEW_ENV_HELM_VERSION}"'|'"${LOG_MGT_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${ONPREM_USERSTORE_NEW_IMAGE_SHA}"'|'"${ONPREM_USERSTORE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/onprem-userstore/dr-setup-variables.yaml
-sed -i '' -e 's|'"${ONPREM_USERSTORE_NEW_IMAGE_SHA}"'|'"${ONPREM_USERSTORE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${ONPREM_USERSTORE_NEW_VERSION}"'|'"${ONPREM_USERSTORE_OLD_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/dr-setup-variables.yaml
-sed -i '' -e 's|'"${ONPREM_USERSTORE_NEW_VERSION}"'|'"${ONPREM_USERSTORE_OLD_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${ONPREM_USERSTORE_NEW_HELM_VERSION}"'|'"${ONPREM_USERSTORE_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${ONPREM_USERSTORE_NEW_ENV_IMAGE_SHA}"'|'"${ONPREM_USERSTORE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${ONPREM_USERSTORE_NEW_ENV_VERSION}"'|'"${ONPREM_USERSTORE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${ONPREM_USERSTORE_NEW_ENV_HELM_VERSION}"'|'"${ONPREM_USERSTORE_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${SUBSCRIPTION_SERVICE_NEW_IMAGE_SHA}"'|'"${SUBSCRIPTION_SERVICE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/subscription-service/dr-setup-variables.yaml
-sed -i '' -e 's|'"${SUBSCRIPTION_SERVICE_NEW_IMAGE_SHA}"'|'"${SUBSCRIPTION_SERVICE_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${SUBSCRIPTION_SERVICE_NEW_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/dr-setup-variables.yaml
-sed -i '' -e 's|'"${SUBSCRIPTION_SERVICE_NEW_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${SUBSCRIPTION_SERVICE_NEW_HELM_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${SUBSCRIPTION_SERVICE_NEW_ENV_IMAGE_SHA}"'|'"${SUBSCRIPTION_SERVICE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${SUBSCRIPTION_SERVICE_NEW_ENV_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${SUBSCRIPTION_SERVICE_NEW_ENV_HELM_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${TENANT_DELETION_NEW_IMAGE_SHA}"'|'"${TENANT_DELETION_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tenant-deletion/dr-setup-variables.yaml
-sed -i '' -e 's|'"${TENANT_DELETION_NEW_IMAGE_SHA}"'|'"${TENANT_DELETION_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${TENANT_DELETION_NEW_VERSION}"'|'"${TENANT_DELETION_OLD_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/dr-setup-variables.yaml
-sed -i '' -e 's|'"${TENANT_DELETION_NEW_VERSION}"'|'"${TENANT_DELETION_OLD_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${TENANT_DELETION_NEW_HELM_VERSION}"'|'"${TENANT_DELETION_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${TENANT_DELETION_NEW_ENV_IMAGE_SHA}"'|'"${TENANT_DELETION_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${TENANT_DELETION_NEW_ENV_VERSION}"'|'"${TENANT_DELETION_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${TENANT_DELETION_NEW_ENV_HELM_VERSION}"'|'"${TENANT_DELETION_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${TIER_CONTROLLER_NEW_IMAGE_SHA}"'|'"${TIER_CONTROLLER_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tier-controller/dr-setup-variables.yaml
-sed -i '' -e 's|'"${TIER_CONTROLLER_NEW_IMAGE_SHA}"'|'"${TIER_CONTROLLER_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${TIER_CONTROLLER_NEW_VERSION}"'|'"${TIER_CONTROLLER_OLD_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/dr-setup-variables.yaml
-sed -i '' -e 's|'"${TIER_CONTROLLER_NEW_VERSION}"'|'"${TIER_CONTROLLER_OLD_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${TIER_CONTROLLER_NEW_HELM_VERSION}"'|'"${TIER_CONTROLLER_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${TIER_CONTROLLER_NEW_ENV_IMAGE_SHA}"'|'"${TIER_CONTROLLER_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${TIER_CONTROLLER_NEW_ENV_VERSION}"'|'"${TIER_CONTROLLER_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${TIER_CONTROLLER_NEW_ENV_HELM_VERSION}"'|'"${TIER_CONTROLLER_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${USER_MGT_NEW_IMAGE_SHA}"'|'"${USER_MGT_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/user-mgt/dr-setup-variables.yaml
-sed -i '' -e 's|'"${USER_MGT_NEW_IMAGE_SHA}"'|'"${USER_MGT_OLD_IMAGE_SHA}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${USER_MGT_NEW_VERSION}"'|'"${USER_MGT_OLD_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/dr-setup-variables.yaml
-sed -i '' -e 's|'"${USER_MGT_NEW_VERSION}"'|'"${USER_MGT_OLD_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-setup-variables.yaml
-sed -i '' -e 's|'"${USER_MGT_NEW_HELM_VERSION}"'|'"${USER_MGT_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${USER_MGT_NEW_ENV_IMAGE_SHA}"'|'"${USER_MGT_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${USER_MGT_NEW_ENV_VERSION}"'|'"${USER_MGT_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-setup-variables.yaml
+perl -i -pe 's|'"${USER_MGT_NEW_ENV_HELM_VERSION}"'|'"${USER_MGT_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/"$new_env"-deploy-001.yaml
 
-sed -i '' -e 's|'"${NETWORK_POLICY_NEW_HELM_VERSION}"'|'"${NETWORK_POLICY_OLD_HELM_VERSION}"'|' $directyPath/cd-pipelines/network-policy/"$new_env"-deploy-001.yaml
+perl -i -pe 's|'"${NETWORK_POLICY_NEW_ENV_HELM_VERSION}"'|'"${NETWORK_POLICY_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/network-policy/"$new_env"-deploy-001.yaml
+
+## DR file update
+if [ "$sync_type" != "perf" ]; then
+  perl -i -pe 's|'"${QUERY_SERVICE_NEW_ENV_IMAGE_SHA}"'|'"${QUERY_SERVICE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/query-service/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${QUERY_SERVICE_NEW_ENV_VERSION}"'|'"${QUERY_SERVICE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/query-service/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${RESOURCE_MONITOR_NEW_ENV_IMAGE_SHA}"'|'"${RESOURCE_MONITOR_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/resource-monitor/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${RESOURCE_MONITOR_NEW_ENV_VERSION}"'|'"${RESOURCE_MONITOR_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/resource-monitor/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${IS_NEW_ENV_IMAGE_SHA}"'|'"${IS_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/identity-server/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${IS_NEW_ENV_VERSION}"'|'"${IS_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${ASGARDEO_NEW_ENV_VERSION}"'|'"${ASGARDEO_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${IS_NEW_ENV_HELM_VERSION}"'|'"${IS_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/identity-server/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${WEBSITE_NEW_ENV_IMAGE_SHA}"'|'"${WEBSITE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/cloud-website/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${WEBSITE_NEW_ENV_VERSION}"'|'"${WEBSITE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${WEBSITE_NEW_ENV_HELM_VERSION}"'|'"${WEBSITE_OLD_ENV_HELM_VERSION}"'|' $directyPath/cd-pipelines/cloud-website/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${ACTIVEMQ_NEW_ENV_IMAGE_SHA}"'|'"${ACTIVEMQ_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/activemq/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${ACTIVEMQ_NEW_ENV_VERSION}"'|'"${ACTIVEMQ_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/activemq/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${LOG_MGT_NEW_ENV_IMAGE_SHA}"'|'"${LOG_MGT_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/log-mgt/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${LOG_MGT_NEW_ENV_VERSION}"'|'"${LOG_MGT_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/log-mgt/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${ONPREM_USERSTORE_NEW_ENV_IMAGE_SHA}"'|'"${ONPREM_USERSTORE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/onprem-userstore/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${ONPREM_USERSTORE_NEW_ENV_VERSION}"'|'"${ONPREM_USERSTORE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/onprem-userstore/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${SUBSCRIPTION_SERVICE_NEW_ENV_IMAGE_SHA}"'|'"${SUBSCRIPTION_SERVICE_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/subscription-service/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${SUBSCRIPTION_SERVICE_NEW_ENV_VERSION}"'|'"${SUBSCRIPTION_SERVICE_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/subscription-service/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${TENANT_DELETION_NEW_ENV_IMAGE_SHA}"'|'"${TENANT_DELETION_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tenant-deletion/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${TENANT_DELETION_NEW_ENV_VERSION}"'|'"${TENANT_DELETION_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/tenant-deletion/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${TIER_CONTROLLER_NEW_ENV_IMAGE_SHA}"'|'"${TIER_CONTROLLER_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/tier-controller/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${TIER_CONTROLLER_NEW_ENV_VERSION}"'|'"${TIER_CONTROLLER_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/tier-controller/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${USER_MGT_NEW_ENV_IMAGE_SHA}"'|'"${USER_MGT_OLD_ENV_IMAGE_SHA}"'|' $directyPath/cd-pipelines/user-mgt/"$dr_prefix"-setup-variables.yaml
+  perl -i -pe 's|'"${USER_MGT_NEW_ENV_VERSION}"'|'"${USER_MGT_OLD_ENV_VERSION}"'|' $directyPath/cd-pipelines/user-mgt/"$dr_prefix"-setup-variables.yaml
+fi
+
+git -C "$directyPath" add -u
+git -C "$directyPath" commit -m "[$new_env-sync] Sync $sync_type and with $old_env env for $ASGARDEO_OLD_ENV_VERSION"
+git -C "$directyPath" push origin "$local_branch"
