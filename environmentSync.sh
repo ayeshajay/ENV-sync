@@ -35,7 +35,7 @@ fi
 old_brach="$old_env-001" # dev-001,stage-001 (branch name of the old environment)
 local_branch="$sync_type-sync" # stage-sync, prod-sync (branch name of the new environment(a locally created branch))
 
-# This command can be used to execute the script : ./environemntSync.sh dev-001 stage-sync dev stage
+# This command can be used to execute the script : ./environemntSync.sh stage-us
 
 # Checkout the old branch and get the version details
 
